@@ -1,6 +1,7 @@
 // https://www.geeksforgeeks.org/tuples-in-c/
 // http://www.cplusplus.com/reference/queue/priority_queue/
 // https://thispointer.com/c11-lambda-how-to-capture-local-variables-inside-lambda/
+// https://stackoverflow.com/questions/14896032/c11-stdset-lambda-comparison-function
 
 // typedef tuple<int, int, int> myTuple;
 typedef tuple<int, int> myTuple;
