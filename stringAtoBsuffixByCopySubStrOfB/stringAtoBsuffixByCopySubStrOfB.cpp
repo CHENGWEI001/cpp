@@ -5,6 +5,13 @@
 
 using namespace std;
 
+
+/*
+    example :
+    A = abcd
+    B = deabc
+    since "abc"d is matching B's de"abc" , so return 3
+ */
 int getNumPrefix(string &A, string &B) {
     int m = A.size();
     int n = B.size();
