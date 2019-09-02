@@ -15,9 +15,9 @@ using namespace std;
 int getNumPrefix(string &A, string &B) {
     int m = A.size();
     int n = B.size();
-    if (m > n) {
-        return 0;
-    }
+    // if (m > n) {
+    //     return 0;
+    // }
     vector<int> next(m+1);
     next[0] = -1;
     int j = -1;
@@ -29,7 +29,7 @@ int getNumPrefix(string &A, string &B) {
         next[i+1] = j;
     }
     j = 0;
-    for (int i = n - m; i < n; i++) {
+    for (int i = max(n - m, 0); i < n; i++) {
         while (j >= 0 && A[j] != B[i]) {
             j = next[j];
         }
@@ -114,6 +114,11 @@ int main() {
     A = "dbfadbcfaa";
     B = "dbcfdab";
     res = 6;
+    test(A, B, res);
+
+    A = "dbcfdabaaa";
+    B = "dbcfdab";
+    res = 3;
     test(A, B, res);
     return 0;
 }
