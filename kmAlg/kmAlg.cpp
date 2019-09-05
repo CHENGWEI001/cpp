@@ -59,8 +59,12 @@ int KM(){
             	{
             		for(int j=0;j<m;j++)
             		{
-            			if(!usey[j])
-							d=min(d,cx[i]+cy[j]-w[i][j]);
+            			if(!usey[j]) {
+            			    // imagine this is to find another unpair one that is closer to current
+            			    // max
+            			    d=min(d,cx[i]+cy[j]-w[i][j]);
+            			}
+
 					}
 				}
 			}
