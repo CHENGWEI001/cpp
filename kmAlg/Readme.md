@@ -1,3 +1,21 @@
+# problem
+```
+    G0 G1 G2
+B0  4  3  0
+B1  4  2  1
+B2  0  0  2
+
+W[i][j] : meaning satification score if pairing Bi and Gj
+
+What is max satisfication score if have B and G paired
+```
+
+
+
+# reference
+* https://blog.csdn.net/dengheCSDN/article/details/77619308
+* https://blog.csdn.net/Hemk340200600/article/details/63792088
+
 # note
 * example:
     ```

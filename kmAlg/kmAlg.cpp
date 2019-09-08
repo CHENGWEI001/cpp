@@ -3,99 +3,120 @@
 #include <cstring>
 #include <algorithm>
 #include <stdio.h>
+#include <assert.h>
 
 using namespace std;
 
-#define N 2
-#define M 2
+#define M 3
+#define N 3
 
-int w[N][M] = {
-    {4, 1},
-    {4, 2},
+int w[M][N] = {
+    {4, 3, 0},
+    {4, 2, 1},
+    {0, 0, 1},
 };
 
 
-// int w[N][M] = {
-//     4,
-// };
-const int inf=(1<<20)-1;
-int m = M,n = N;//n左m右
-int cx[N],cy[M];//顶标
-bool usex[N],usey[M];
-int link[M];//link[i]=x代表：在y图中的i与x相连
-bool dfs(int u){
-    // printf("dfs:u:%d\n", u);
-    usex[u]=1;
-    for(int i=0;i<m;i++) {
-        if(!usey[i]&&cx[u]+cy[i]==w[u][i]) {
-            usey[i]=1;
-            if(link[i]==-1||dfs(link[i])) {
-                link[i]=u;
-                return 1;
-            }
+// initially cx[x] equal max of w[x][j] | j = 0 .. N-1
+void initcx(vector<int> &cx) {
+    for (int x = 0; x < M; x++) {
+        for (int y = 0; y < N; y++) {
+            cx[x] = max(cx[x], w[x][y]);
+            // printf("cx[%d]:%d\n", x, cx[x]);
         }
     }
-    return 0;
 }
-int KM(){
-    memset(cy,0,sizeof(cy));
-    memset(cx,-1,sizeof(cx));
-    for(int i=0;i<n;i++)
-        for(int j=0;j<m;j++)
-            cx[i]=max(cx[i],w[i][j]);
-    for(int i=0;i<n;i++) {
-        printf("for loop for i:%d\n", i);
-        while(1){
-            int d=inf;
-            memset(usex,0,sizeof(usex));
-            memset(usey,0,sizeof(usey));
-            if(dfs(i)) {
-                printf("complete i:%d\n\n", i);
+
+bool find(int x, vector<int> &usedx, vector<int> &usedy, vector<int> &cx, vector<int> &cy, vector<int> &link) {
+    usedx[x] = 1;
+    for (int y = 0; y < N; y++) {
+        if (usedy[y] || w[x][y] != cx[x] + cy[y]) {
+            continue;
+        }
+        usedy[y] = 1;
+        if (link[y] == -1 || find(link[y], usedx, usedy, cx, cy, link)) {
+            link[y] = x;
+            return true;
+        }
+    }
+    return false;
+}
+
+int KM(vector<int> &link) {
+    vector<int> usedx(M, 0);
+    vector<int> usedy(N, 0);
+    vector<int> cx(M, 0);
+    vector<int> cy(N, 0);
+
+    initcx(cx);
+
+    for (int x = 0; x < M; x++) {
+        printf("start x:%d\n", x);
+        int r = 0;
+        while (true) {
+            printf("round:%d for x:%d\n", r, x);
+            usedx.resize(M, 0);
+            usedy.resize(N, 0);
+            // for given x , if we can find pair with best score for cx[x], we move forward
+            if (find(x, usedx, usedy, cx, cy, link)) {
+                printf("complete for x:%d\n\n", x);
                 break;
             }
-            for(int i=0;i<n;i++)
-            {
-            	if(usex[i])
-            	{
-            		for(int j=0;j<m;j++)
-            		{
-            			if(!usey[j]) {
-            			    // imagine this is to find another unpair one that is closer to current
-            			    // max
-            			    d=min(d,cx[i]+cy[j]-w[i][j]);
-            			}
-
-					}
-				}
-			}
-            if(d==inf)return -1;
-            for(int i=0;i<n;i++) {
-                if(usex[i]) {
-                    printf("update cx[%d]:%d -=%d\n", i, cx[i], d);
-                    cx[i]-=d;
+            // if we can't find best pair for x, we need to relax path
+            // for all visited x with all non visited y
+            // basically try to find the next score that is cloest to current pair score
+            int d = -1;
+            for (int i = 0; i < M; i++) {
+                if (usedx[i]) {
+                    for (int j = 0; j < N; j++) {
+                        if (!usedy[j]) {
+                            // since we start from best pair score , cx[i] + cy[j] is always bigger than w[i][j]
+                            int tmp = cx[i] + cy[j] - w[i][j];
+                            printf("i:%d, j:%d, cx:%d, cy:%d, w:%d\n", i, j, cx[i], cy[j], w[i][j]);
+                            // need to skip case when diff is 0 , this case might hit forever loop
+                            if (tmp == 0) {
+                                continue;
+                            }
+                            // we don't exp tmp < 0
+                            assert(tmp >= 0);
+                            if (d == -1 || d > tmp) {
+                                d = tmp;
+                            }
+                        }
+                    }
                 }
             }
-
-            for(int i=0;i<m;i++) {
-                if(usey[i]) {
-                    printf("update cy[%d]:%d -=%d\n", i, cy[i], d);
-                    cy[i]+=d;
+            printf("d is :%d\n", d);
+            if (d == -1) {
+                return -1;
+            }
+            // cx[i] -= d is to relax x
+            for (int i = 0; i < M; i++) {
+                if (usedx[i]) {
+                    cx[i] -= d;
                 }
             }
-
+            // cy[j] += d is to maintain the balance to make previous matching pair still be able to
+            // be choosen after adjusting the cx and cy
+            for (int j = 0; j < N; j++) {
+                if (usedy[j]) {
+                    cy[j] += d;
+                }
+            }
         }
     }
-    int ans=0;
-    for(int i=0;i<m;i++){
-        if(~link[i])ans+=w[link[i]][i];
+    int ans = 0;
+    for (int y = 0; y < N; y++) {
+        // if (link[y] == -1) {
+        //     return -1;
+        // }
+        ans += w[link[y]][y];
     }
     return ans;
 }
 
 int main() {
-    n = N;
-    m = M;
-    memset(&link[0], -1, sizeof(link));
-    int ans = KM();
+    vector<int> link(N, -1);
+    int ans = KM(link);
     printf("ans:%d\n", ans);
 }
