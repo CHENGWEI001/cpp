@@ -55,8 +55,11 @@ void dfs(pair<int, int> curr, vector<vector<int>> &grid, pair<int, int> src, pai
 
 void genMaze(vector<vector<int>> &grid, pair<int, int> src, pair<int, int> tgt) {
     int numBreak = 0;
-    unordered_map<int, unordered_map<int, bool>> path;
-    dfs({5,5}, {-1,-1}, grid, src, tgt, numBreak);
+    int m = grid.size();
+    int n = grid[0].size();
+    int maxLvl = 10;
+    vector<vector<bool>> visited(m, vector<bool>(n, false));
+    dfs({5,5}, grid, src, tgt, numBreak, maxLvl);
 }
 
 void makeGrid(int m , int n, vector<vector<int>> &grid) {
