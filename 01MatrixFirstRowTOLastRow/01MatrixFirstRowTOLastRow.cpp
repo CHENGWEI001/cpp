@@ -1,8 +1,22 @@
 #include <vector>
 #include <queue>
 #include <stdio.h>
+#include <algorithm>
 
 using namespace std;
+
+void printPath(vector<vector<int>> &pi, int n, int i, int j) {
+    vector<pair<int, int>> path;
+    int curr = i*n+j;
+    while (curr != -1) {
+        path.push_back({curr/n, curr%n});
+        curr = pi[curr/n][curr%n];
+    }
+    reverse(path.begin(), path.end());
+    for (auto &p: path) {
+        printf("(%d,%d)\n", p.first, p.second);
+    }
+}
 
 bool check(vector<vector<int>> &grid) {
     int d[5] = {-1,0,1,0,-1};
@@ -10,6 +24,7 @@ bool check(vector<vector<int>> &grid) {
     int m = grid.size();
     int n = grid[0].size();
     vector<vector<bool>> vis(m, vector<bool>(n, false));
+    vector<vector<int>> pi(m, vector<int>(n, -1));
     for (int j = 0; j < n; j++) {
         if (grid[0][j] == 1) {
             q.push({0,j});
@@ -22,6 +37,7 @@ bool check(vector<vector<int>> &grid) {
         int i = curr.first;
         int j = curr.second;
         if (i == m-1) {
+            printPath(pi, n, i, j);
             return true;
         }
         for (int k = 0; k < 4; k++) {
@@ -32,6 +48,7 @@ bool check(vector<vector<int>> &grid) {
             }
             q.push({x, y});
             vis[x][y] = true;
+            pi[x][y] = i*n+j;
         }
     }
     return false;
@@ -44,7 +61,7 @@ int main() {
     vector<vector<int>> grid = {
         {1,1,1,1},
         {0,0,0,1},
-        {0,1,0,0},
+        {0,1,0,1},
         {0,0,1,1},
     };
     printf("res:%d", check(grid)? 1: 0);
