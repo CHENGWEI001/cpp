@@ -107,6 +107,7 @@ int maxminsweetV3(vector<int> &sweets, int k) {
     int n = sweets.size();
     vector<vector<int>> dp(k+1, vector<int>(n+1, 0));
     vector<int> pre({0});
+    vector<vector<int>> pi(k+1, vector<int>(n+1, 0));
 
 /*
          [6, 3, 2, 8, 7, 5]
@@ -136,17 +137,37 @@ dp[2] =  0  0  3  5  8
             // min (11,8)
             // min(9, 10) = 9
             dp[i][j] = min(dp[i-1][t], pre[j] - pre[t]);
+            pi[i][j] = t;
             if (t-1 >= i-1) {
                 dp[i][j] = max(dp[i][j], min(dp[i-1][t-1], pre[j] - pre[t-1]));
+                if (dp[i][j] == min(dp[i-1][t-1], pre[j] - pre[t-1])) {
+                    pi[i][j] = t-1;
+                }
             }
         }
     }
+    int i = k;
+    int j = n;
+    vector<int> path;
+    while (j != 0) {
+        path.push_back(j - pi[i][j]);
+        j = pi[i][j];
+        i--;
+    }
+    reverse(path.begin(), path.end());
+    for (int n: path) {
+        printf("%d, ", n);
+    }
+    printf("\n");
+
     return dp[k][n];
 }
 
 
 void test1() {
-    vector<int> sweets({6, 3, 2, 8, 7, 5});
+    // vector<int> sweets({6, 3, 2, 8, 7, 5});
+    // int k = 3;
+    vector<int> sweets({6, 3, 2, 8});
     int k = 3;
     int maxmin = maxminsweetV3(sweets, k);
     printf("maxmin:%d\n", maxmin);
