@@ -57,6 +57,11 @@ But this way worst case is O(n^2), like below case:
 5 5 5 5 , at i = 3, st = [5,5,5] , we look all item in st,
 and didn't pop any thing from st
 
+我也觉得不对，比2高的只能算一个，另外一个被挡住了。我觉得follow up 1 比 2 难一些，非常诡异。
+都要用单调栈
+followup 1: 相等不踢掉，可是如果有来一个相等的，就要算有多少个相等的，全算进去，如果前面还有大的，要加1；更快的就要记住所有的栈里的重复的次数，相同就踢掉，只保留一个。
+followup 2: 没有重复即直接pop，计数，如果结束还有，加1，没有就不加
+
 */
 
 vector<int> count2(vector<int> &h) {
