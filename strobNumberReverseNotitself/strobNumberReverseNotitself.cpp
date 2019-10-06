@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 // https://www.1point3acres.com/bbs/thread-552910-1-1.html
+// refer to https://leetcode.com/problems/confusing-number-ii/ for correct implementation
 
 using namespace std;
 
