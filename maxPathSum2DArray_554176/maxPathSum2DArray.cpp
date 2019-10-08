@@ -23,7 +23,7 @@ we try up , right, down , left sequence, if "y up left" path is less than "y lef
 since we go up first, we might end up not choosing "y left up" path.
 
 2. Originally I was wondering if I can use idea like post order then pre order to
-calculate this , but think about below case from x, when doing preorder, if you try to
+calculate this ( note like backtack into node set visited = true, leaving set visited = false), but think about below case from x, when doing preorder, if you try to
 go though the flow with below case, you would find we end up use some overlap path and
 migth be hard to detect it
 
