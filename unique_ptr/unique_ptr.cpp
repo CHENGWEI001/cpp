@@ -44,7 +44,9 @@ void Bar() {
 }
 
 void Baz() {
-    // this one just invoke one regular constructor
+    // this one the reason is okay is because there will be a constructor called
+    // then this way to pass likea Rvalue, the move constructor will be invoked
+    // so eventually still only one copy of the unique ptr
     AcceptFoo(NewFoo());
 }
 
