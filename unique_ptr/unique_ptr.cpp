@@ -49,8 +49,12 @@ void Baz() {
 }
 
 void test1(Foo f) {
-
+    cout << "reg called" << endl;
 }
+
+// void test1(Foo &&f) {
+//     cout << "Rvalue called" << endl;
+// }
 
 int main() {
     //
