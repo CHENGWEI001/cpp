@@ -7,12 +7,112 @@
 #include <sys/time.h>
 #include <assert.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include <stdint.h>
 
 // Three simple allocators: K&R, region, and buddy
 // compile on Linux: $ gcc -O2 -o malloc malloc.c
 // run: $ ./malloc
+
+
+///
+// MY version
+///
+
+#define max(a, b) ((a)>(b)? (a):(b))
+
+struct hdr {
+  size_t size;
+  struct hdr* next;
+};
+
+typedef struct hdr hdr;
+hdr h = {0, &h};
+
+void *my_malloc(size_t nbytes) {
+  hdr *p = &h;
+  // round up to # of hdr unit, plus one for header
+  size_t nunit = (nbytes + sizeof(hdr) - 1)/sizeof(hdr) + 1 ;
+  // printf("my_malloc: nunit:%d\n", nunit);
+  hdr* np = NULL;
+  while (1) {
+    if (p->next->size >= nunit) {
+      np = p->next;
+      if (np->size == nunit) {
+        p->next = np->next;
+      } else {
+        // printf("my_malloc: >= , np:%x, sizeof(hdr):%d\n", np, sizeof(hdr));
+        np->size -= nunit;
+        np += np->size;
+        np->size = nunit;
+      }
+      break;
+    }
+    // in case no available free blk,
+    // we need to alloc one from sbrk
+    // then do the same loop at that block to have it allocated
+    if (p->next == &h) {
+      size_t sz_req = max(nunit, 1024);
+      hdr* tp = (hdr*)sbrk(sz_req * sizeof(hdr));
+      if (tp == (char*)-1) {
+        return NULL;
+      }
+      tp->size = sz_req;
+      tp->next = p->next;
+      p->next = tp;
+      // printf("my_malloc: call sbrk: %d, tp:%x, tp->size:%d\n", sz_req, tp, tp->size);
+      continue;
+    }
+    p = p->next;
+  }
+  // printf("my_malloc: np:%x, np->size:%d\n", np, np->size);
+  // my_print();
+  return (void*)(np + 1);
+}
+
+void my_free(void *ap) {
+  hdr* p = &h;
+  hdr* bp = (hdr*)ap - 1;
+  // printf("my_free: bp:%x, bp->size:%d\n", bp, bp->size);
+  // we are trying to find until find p that bp is in the middle of p and p->next
+  while (!(bp > p && bp < p->next)) {
+    // special case for p and p->next wrap around
+    if (p >= p->next && (bp >= p || bp <= p->next)) {
+      break;
+    }
+    p = p->next;
+  }
+  // merge upper
+  if (bp + bp->size == p->next) {
+    bp->size += p->next->size;
+    bp->next = p->next->next;
+  } else {
+    bp->next = p->next;
+  }
+  // merge lower
+  if (p + p->size == bp) {
+    p->size += bp->size;
+    p->next = bp->next;
+  } else {
+    p->next = bp;
+  }
+  // my_print();
+}
+
+void
+my_print(void) {
+  printf("call %s\n", __func__);
+  hdr* p = &h;
+
+  while (1) {
+    printf("%p %d\n", p, p->size);
+    p = p->next;
+    if (p == &h) {
+      break;
+    }
+  }
+}
 
 //
 // K&R allocator (Section 8.7)
@@ -39,7 +139,7 @@ static Header *moreheap(size_t nu)
 
   if (nu < NALLOC)
     nu = NALLOC;
-  cp = sbrk(nu * sizeof(Header));
+  cp = (Header*)sbrk(nu * sizeof(Header));
   if (cp == (char *) -1)
     return NULL;
   up = (Header *) cp;
@@ -138,9 +238,9 @@ static Region rg_base;
 Region *
 rg_create(size_t nbytes)
 {
-  rg_base.start = sbrk(nbytes);
-  rg_base.cur = rg_base.start;
-  rg_base.end = rg_base.start + nbytes;
+  // rg_base.start = sbrk(nbytes);
+  // rg_base.cur = rg_base.start;
+  // rg_base.end = rg_base.start + nbytes;
   return &rg_base;
 }
 
@@ -167,7 +267,7 @@ rg_free(Region *r) {
 #define NSIZES        15 // Number of entries in bd_sizes array
 #define MAXSIZE       (NSIZES-1) // Largest index in bd_sizes array
 #define BLK_SIZE(k)   ((1L << (k)) * LEAF_SIZE) // Size in bytes for size k
-#define HEAP_SIZE     BLK_SIZE(MAXSIZE) 
+#define HEAP_SIZE     BLK_SIZE(MAXSIZE)
 #define NBLK(k)       (1 << (MAXSIZE-k))  // Number of block at size k
 #define ROUNDUP(n,sz) (((((n)-1)/(sz))+1)*(sz))  // Round up to the next multiple of sz
 
@@ -191,7 +291,7 @@ struct sz_info {
 };
 typedef struct sz_info Sz_info;
 
-static Sz_info bd_sizes[NSIZES]; 
+static Sz_info bd_sizes[NSIZES];
 static void *bd_base;   // start address of memory managed by the buddy allocator
 
 // List functions that the buddy allocator uses. Implementations
@@ -202,7 +302,7 @@ void lst_push(Bd_list*, void *);
 void *lst_pop(Bd_list*);
 void lst_print(Bd_list*);
 int lst_empty(Bd_list*);
-  
+
 // Return 1 if bit at position index in array is set to 1
 int bit_isset(char *array, int index) {
   char b = array[index/8];
@@ -247,28 +347,28 @@ bd_print() {
 
 // Allocate memory for the heap managed by the allocator, and allocate
 // memory for the data structures of the allocator.
-void
-bd_init() {
-  bd_base = mmap(NULL, HEAP_SIZE, PROT_READ | PROT_WRITE,
-		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (bd_base == MAP_FAILED) {
-    fprintf(stderr, "couldn't map heap; %s\n", strerror(errno));
-    assert(bd_base);
-  }
-  // printf("bd: heap size %d\n", HEAP_SIZE);
-  for (int k = 0; k < NSIZES; k++) {
-    lst_init(&bd_sizes[k].free);
-    int sz = sizeof(char)*ROUNDUP(NBLK(k), 8)/8;
-    bd_sizes[k].alloc = malloc(sz);
-    memset(bd_sizes[k].alloc, 0, sz);
-  }
-  for (int k = 1; k < NSIZES; k++) {
-    int sz = sizeof(char)*ROUNDUP(NBLK(k), 8)/8;
-    bd_sizes[k].split = malloc(sz);
-    memset(bd_sizes[k].split, 0, sz);
-  }
-  lst_push(&bd_sizes[MAXSIZE].free, bd_base);
-}
+// void
+// bd_init() {
+//   bd_base = mmap(NULL, HEAP_SIZE, PROT_READ | PROT_WRITE,
+// 		 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+//   if (bd_base == MAP_FAILED) {
+//     fprintf(stderr, "couldn't map heap; %s\n", strerror(errno));
+//     assert(bd_base);
+//   }
+//   // printf("bd: heap size %d\n", HEAP_SIZE);
+//   for (int k = 0; k < NSIZES; k++) {
+//     lst_init(&bd_sizes[k].free);
+//     int sz = sizeof(char)*ROUNDUP(NBLK(k), 8)/8;
+//     bd_sizes[k].alloc = malloc(sz);
+//     memset(bd_sizes[k].alloc, 0, sz);
+//   }
+//   for (int k = 1; k < NSIZES; k++) {
+//     int sz = sizeof(char)*ROUNDUP(NBLK(k), 8)/8;
+//     bd_sizes[k].split = malloc(sz);
+//     memset(bd_sizes[k].split, 0, sz);
+//   }
+//   lst_push(&bd_sizes[MAXSIZE].free, bd_base);
+// }
 
 // What is the first k such that 2^k >= n?
 int
@@ -300,7 +400,7 @@ void *
 bd_malloc(size_t nbytes)
 {
   int fk, k;
-  
+
   assert(bd_base != NULL);
 
   // Find a free block >= nbytes, starting with smallest k possible
@@ -340,7 +440,7 @@ void
 bd_free(void *p) {
   void *q;
   int k;
-  
+
   for (k = size(p); k < MAXSIZE; k++) {
     int bi = blk_index(k, p);
     bit_clear(bd_sizes[k].alloc, bi);
@@ -465,7 +565,7 @@ rg_workload(int sz) {
   List h;
   List *p;
   Region *r = rg_create(HEAPINC);
-  
+
   h.next = NULL;
   for (int i = 0; i < sz; i++) {
     p = rg_malloc(r, 16);
@@ -483,23 +583,30 @@ main(char *argv, int argc)
   struct timeval start, end;
 
   gettimeofday(&start, NULL);
-  workload(N, kr_malloc, kr_free);
+  workload(N, my_malloc, my_free);
+  my_print();
   gettimeofday(&end, NULL);
-  printf("elapsed time K&R is    %d usec\n", 
+  printf("elapsed time my is    %d usec\n",
 	 (end.tv_sec-start.tv_sec) * 1000000 + end.tv_usec - start.tv_usec);
 
   gettimeofday(&start, NULL);
-  rg_workload(N);
+  workload(N, kr_malloc, kr_free);
+  kr_print();
   gettimeofday(&end, NULL);
-  printf("elapsed time region is %d usec\n", 
+  printf("elapsed time K&R is    %d usec\n",
 	 (end.tv_sec-start.tv_sec) * 1000000 + end.tv_usec - start.tv_usec);
-  
-  bd_init();
-  gettimeofday(&start, NULL);
-  workload(N, bd_malloc, bd_free);
-  gettimeofday(&end, NULL);
-  printf("elapsed time buddy is  %d usec\n", 
-	 (end.tv_sec-start.tv_sec) * 1000000 + end.tv_usec - start.tv_usec);
+  // gettimeofday(&start, NULL);
+  // rg_workload(N);
+  // gettimeofday(&end, NULL);
+  // printf("elapsed time region is %d usec\n",
+	 //(end.tv_sec-start.tv_sec) * 1000000 + end.tv_usec - start.tv_usec);
+
+  // bd_init();
+  // gettimeofday(&start, NULL);
+  // workload(N, bd_malloc, bd_free);
+  // gettimeofday(&end, NULL);
+  // printf("elapsed time buddy is  %d usec\n",
+	 //(end.tv_sec-start.tv_sec) * 1000000 + end.tv_usec - start.tv_usec);
 
   /* set NSIZES to 4
   bd_init();
